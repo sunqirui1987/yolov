@@ -32,10 +32,6 @@ import numpy as np
 from matplotlib import cm
 import sys
 import PIL
-import requests
-import zipfile
-import logging
-
 sys.tracebacklimit = 0
 
 def make_yaml(name, *cat):
@@ -146,57 +142,6 @@ def auto_append_grounding(language_instruction, grounding_texts):
 
 def slice_per(source, step):
     return [source[i::step] for i in range(step)]
-
-
-
-
-def generate2(task, dir_name, roboflow_name, state):
-    logging.basicConfig(level=logging.INFO)
-
-    if not os.path.isdir(dir_name):
-        try:
-            subprocess.run(['mkdir', dir_name])
-            logging.info(f"Directory {dir_name} created.")
-        except Exception as e:
-            logging.error(f"Error occurred while creating directory {dir_name}: {e}")
-            return None, None, state
-
-        try:
-            subprocess.run(['mkdir', f'datasets/{dir_name}/'])
-            logging.info(f"Directory datasets/{dir_name} created.")
-        except Exception as e:
-            logging.error(f"Error occurred while creating directory datasets/{dir_name}: {e}")
-            return None, None, state
-  
-    filename = f'{dir_name}.zip'
-    # 下载文件
-    try:
-        response = requests.get(roboflow_name)
-        with open(filename, 'wb') as file:
-            file.write(response.content)
-        logging.info(f"File {filename} downloaded.")
-    except Exception as e:
-        logging.error(f"Error occurred while downloading file: {e}")
-        return None, None, state
-
-    # 解压文件
-    try:
-        with zipfile.ZipFile(filename, 'r') as zip_ref:
-            zip_ref.extractall(f'datasets/{dir_name}')
-        logging.info(f"File {filename} extracted.")
-    except Exception as e:
-        logging.error(f"Error occurred while extracting file: {e}")
-        return None, None, state
-
-    # 删除文件
-    try:
-        os.remove(filename)
-        logging.info(f"File {filename} removed.")
-    except Exception as e:
-        logging.error(f"Error occurred while removing file: {e}")
-        return None, None, state
-
-    return None, "download success", state
 
 def generate(task, dir_name, split, grounding_texts, sketch_pad,
              alpha_sample, guidance_scale, batch_size,
@@ -528,11 +473,11 @@ function(x) {
 with Blocks(
     css=css,
     analytics_enabled=False,
-    title="Auto Gradio demo",
+    title="YOLOv8 Gradio demo",
 ) as main:
     description_label = """
     <p style="text-align: center;">
-        <span style="font-size: 28px; font-weight: bold;">AutoTrain with Gradio: label images</span>
+        <span style="font-size: 28px; font-weight: bold;">YOLOv8 with Gradio: label images</span>
         <br>
         This tab allows you to label images with drawings! \n
         The sketchpad will automatically detect and compute the bounding box locations,\n
@@ -543,14 +488,14 @@ with Blocks(
     """
     description_gal = """
     <p style="text-align: center;">
-        <span style="font-size: 28px; font-weight: bold;">AutoTrain with Gradio: View image data after labeling</span>
+        <span style="font-size: 28px; font-weight: bold;">YOLOv8 with Gradio: View image data after labeling</span>
         <br>
         This tab can be used to view the photos we have labeled.
     </p>
     """
     description_train = """
     <p style="text-align: center;">
-        <span style="font-size: 28px; font-weight: bold;">AutoTrain with Gradio: Train your model</span>
+        <span style="font-size: 28px; font-weight: bold;">YOLOv8 with Gradio: Train your model</span>
         <br>
         Now that we have labeled our images, we can train our model! \n
         Select the model type, batch size, and the number of epochs you would like to train for, and click the Generate button to run training.  
@@ -558,7 +503,7 @@ with Blocks(
     """
     description_inf = """
     <p style="text-align: center;">
-        <span style="font-size: 28px; font-weight: bold;">AutoTrain with Gradio: Generate image labels</span>
+        <span style="font-size: 28px; font-weight: bold;">YOLOv8 with Gradio: Generate image labels</span>
         <br>
         This tab can be used to run predictions on photos from our computer using the model we just trained. 
     </p>
@@ -576,20 +521,15 @@ with Blocks(
                 dir_name= gr.Textbox(
                     label = 'Name of directory holding files'
                 )
-
-                roboflow_name= gr.Textbox(
-                    label = 'Name of roboflow download url'
-                )
-
-                split = gr.Radio(label='Which image split does this image fall into?', choices = ['train','test','valid'], visible=False, value = 'train')
+                split = gr.Radio(label='Which image split does this image fall into?', choices = ['train','test','valid'], value = 'train')
                 task = gr.Radio(
                     choices=["Grounded Generation", 'Grounded Inpainting'],
                     type="value",
                     value="Grounded Inpainting",
                     label="Task", visible = False)
-                grounding_instruction = gr.Textbox(label="Annotations (seperated by semicolon)" ,visible=False)
+                grounding_instruction = gr.Textbox(label="Annotations (seperated by semicolon)")
 
-                select_upload_type = gr.Radio(label='Select upload type',choices = ['Upload bulk', 'Single uploads'], value = 'Single uploads',visible=False)
+                select_upload_type = gr.Radio(label='Select upload type',choices = ['Upload bulk', 'Single uploads'], value = 'Single uploads')
                 upload_bulk = gr.File(label = 'Input images',file_count = 'multiple', visible = False, interactive = True)
                 select_image = gr.Dropdown(choices = None, label = 'Select image to label', visible = False)
                 refresh_dropdown = gr.Button('Refresh image dropdown', visible = False)
@@ -602,19 +542,18 @@ with Blocks(
                         use_actual_mask = gr.Checkbox(value=False, label="Use actual mask for inpainting", visible=False)
                         with gr.Row():
                             fix_seed = gr.Checkbox(value=True, label="Fixed seed", visible = False)
-                            rand_seed = gr.Slider(minimum=0, maximum=1000, step=1, value=0, label="Seed" ,visible=False)
+                            rand_seed = gr.Slider(minimum=0, maximum=1000, step=1, value=0, label="Seed")
                         with gr.Row():
                             use_style_cond = gr.Checkbox(value=False, label="Enable Style Condition", visible = False)
                             style_cond_image = gr.Image(type="pil", label="Style Condition", interactive=True, visible = False)
             with gr.Column(scale=4):
                 with gr.Row():
-                    sketch_pad = ImageMask(label="Input image", elem_id="img2img_image" ,visible=False)
+                    sketch_pad = ImageMask(label="Input image", elem_id="img2img_image")
                 with gr.Row():    
-                    out_imagebox = gr.Image(type="pil", label="Annotated image" ,visible=False)
+                    out_imagebox = gr.Image(type="pil", label="Annotated image")
                 with gr.Row():
-                    clear_btn = gr.Button(value='Clear sketchpads',visible=False)
-                    gen_btn = gr.Button(value='Generate labels',visible=False)
-                    gen_btn2 = gr.Button(value='download roboflow')
+                    clear_btn = gr.Button(value='Clear sketchpads')
+                    gen_btn = gr.Button(value='Generate labels')
 
                 with gr.Row():
                     out_gen_1 = gr.Image(label = 'Output image', type="pil", visible=False, show_label=True)
@@ -626,7 +565,8 @@ with Blocks(
 
             state = gr.State({})
             
-    
+        with gr.Row():
+            gr.Image('assets/logo.png').style(height = 53, width = 125, interactive = False)
         
             
     with gr.Tab('Image Gallery'):
@@ -665,7 +605,8 @@ with Blocks(
             file_obj = gr.File(label="Output file")
         with gr.Column():
             load_file = gr.Button('Load file')
-       
+        with gr.Row():
+            gr.Image('assets/logo.png').style(height = 53, width = 125, interactive = False)
                         
     with gr.Tab('Inference'):
         print('inf')
@@ -687,7 +628,9 @@ with Blocks(
             with gr.Column():
                 out_inf_img = gr.Image(label = 'Labeled image', type = 'pil') 
                 out_inf_vid = gr.Video(label = 'Labeled video', visible =False)
-    
+        with gr.Row():
+            gr.Image('assets/logo.png').style(height = 53, width = 125, interactive = False)
+
         
 
     class Controller:
@@ -780,15 +723,6 @@ with Blocks(
             fix_seed, rand_seed,
             use_actual_mask,
             append_grounding, style_cond_image,
-            state
-        ],
-        outputs=[out_gen_1, out_gen_2, state],
-        queue=False
-    )
-    gen_btn2.click(
-        generate2,
-        inputs=[
-            task, dir_name, roboflow_name,
             state
         ],
         outputs=[out_gen_1, out_gen_2, state],
