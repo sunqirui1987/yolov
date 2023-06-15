@@ -652,8 +652,8 @@ with Blocks(
 
             tr_model_type = gr.Radio(label = "Model type", choices = ['YOLOv8n', 'YOLOv8s', 'YOLOv8m', 'YOLOv8l', 'YOLOv8x'], visible =True)
             with gr.Column():
-                epochs = gr.Slider(label = "Number of epochs", value = 1, max = 1000)
-                batch_size = gr.Slider(value = 1, minimum = 0, maximum = 128, step = 1, label = 'Batch Size')
+                epochs = gr.Slider(label = "Number of epochs", value = 100, max = 1000)
+                batch_size = gr.Slider(value = 10, minimum = 0, maximum = 128, step = 1, label = 'Batch Size')
 
         with gr.Column():
             train_btn = gr.Button(value = 'Train')
