@@ -36,6 +36,11 @@ import requests
 import zipfile
 import logging
 
+from threading import Lock
+
+# Initialize a lock
+lock = Lock()
+
 sys.tracebacklimit = 0
 
 def make_yaml(name, *cat):
@@ -266,19 +271,20 @@ Please draw boxes accordingly on the sketch pad.""".format(len(boxes), len(groun
 
 
 def train(tr_name, epochs, model_type, batch_size):
+    with lock:
+        model_dict = {'YOLOv8n':'yolov8n', 'YOLOv8s':'yolov8s', 'YOLOv8m':'yolov8m', 'YOLOv8l':'yolov8l', 'YOLOv8x':'yolov8x'}
+        model_type = model_dict[model_type]
+        print(tr_name, epochs, model_type)
+        model = YOLO(f"{model_type}.yaml")  # build a new model from scratch
+        model = YOLO(f"{model_type}.pt")  # load a pretrained model (recommended for training)
+        
+        model.train(data=f"datasets/{tr_name}/data.yaml",  name= tr_name, epochs=epochs, verbose = True, batch = batch_size)
+        
 
-    model_dict = {'YOLOv8n':'yolov8n', 'YOLOv8s':'yolov8s', 'YOLOv8m':'yolov8m', 'YOLOv8l':'yolov8l', 'YOLOv8x':'yolov8x'}
-    model_type = model_dict[model_type]
-    print(tr_name, epochs, model_type)
-    model = YOLO(f"{model_type}.yaml")  # build a new model from scratch
-    model = YOLO(f"{model_type}.pt")  # load a pretrained model (recommended for training)
-    
-    model.train(data=f"datasets/{tr_name}/data.yaml", epochs=epochs, verbose = True, batch = batch_size)
-    
-    #     yield pd.read_csv('runs/detect/train28.csv')
-    metrics = model.val()  # evaluate model performance on the validation set
-    #success = model.export(format="onnx")  # export the model to ONNX format
-    return pd.DataFrame.from_dict([metrics.results_dict]), model.trainer.best
+        #     yield pd.read_csv('runs/detect/train28.csv')
+        metrics = model.val()  # evaluate model performance on the validation set
+        #success = model.export(format="onnx")  # export the model to ONNX format
+        return pd.DataFrame.from_dict([metrics.results_dict]), model.trainer.best
 
 
 from PIL import Image
@@ -843,6 +849,6 @@ with Blocks(
     select_image.select(on_select, inputs = None, outputs = sketch_pad)
     select_image.select(fix, inputs = None, outputs = [out_gen_3, out_gen_4])
     select_inp.select(select_inp_type, inputs = select_inp, outputs = [img, vid, out_inf_img, out_inf_vid])
-main.launch(share=True,  server_name="0.0.0.0",  debug = True, show_error=True)
+main.launch(share=True,  server_name="0.0.0.0", server_port = 7861,  debug = True, show_error=True)
 
 
